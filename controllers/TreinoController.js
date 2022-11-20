@@ -1,4 +1,6 @@
 import dbKnex from '../dados/db_config.js'
+import ejs from 'ejs'
+import puppeteer from 'puppeteer'
 
 export const treinosIndex = async (req, res) => {
   try {
@@ -122,7 +124,7 @@ export const treinosTotalVotos = async (req, res) => {
 export const treinosPorTipo = async (req, res) => {
   try {
     const consulta = await dbKnex("treinos").select("tipo")
-            .count({num: "*"}).groupBy("tipo")
+            .count({num: "*"}).groupBy("tipo")                                   //GROUPBY
     res.status(200).json(consulta)
   } catch (error) {
     res.status(400).json({ id: 0, msg: "Erro: " + error.message })
@@ -139,3 +141,66 @@ export const treinosVotos = async (req, res) => {
     res.status(400).json({ id: 0, msg: "Erro: " + error.message })
   }
 }
+
+
+// export const treinosIndex = async (req, res) => {
+//   try {
+//     // obtém da tabela de produtos todos os registros
+//     const treinos = await dbKnex.select("t.*", "a.nome as admins")
+//     .from("treinos as t")
+//     .innerJoin("admins as a", {"t.usuario_id": "a.id"})
+//     res.status(200).json(treinos)
+//   } catch (error) {
+//     res.status(400).json({ id: 0, msg: "Erro: " + error.message })
+//   }
+// }
+
+export const treinoLista = async (req, res) => {
+  try {
+    // obtém da tabela de produtos todos os registros
+    const treinos = await dbKnex.select("t.*", "a.nome as admins")
+                                  .from("treinos as t")
+                                  .innerJoin("admins as a", {"t.usuario_id": "a.id"})
+
+    ejs.renderFile('views/listaTreinos.ejs', {treinos}, (err, html) => {
+      if (err) {
+        return res.status(400).send("Erro na geração da página")
+      }
+      res.status(200).send(html)                              
+    });
+  } catch (error) {
+    res.status(400).json({ id: 0, msg: "Erro: " + error.message })
+  }
+}
+
+
+export const treinoPdf = async(req, res) => {
+  //  const browser = await puppeteer.launch({headless: false});
+    const browser = await puppeteer.launch();
+    const page = await browser.newPage();
+  
+    // carrega a página da rota anterior (com a listagem dos produtos)
+    await page.goto('http://localhost:3031/treinos/lista');
+  
+    // aguarda a conclusão da exibição da página com os dados do banco
+    await page.waitForNetworkIdle(0)
+  
+    // gera o pdf da página exibida
+    const pdf = await page.pdf({
+      printBackground: true,
+      format: 'A4',
+      margin: {
+        top: '20px',
+        right: '20px',
+        bottom: '20px',
+        left: '20px'
+      }
+    })
+  
+    await browser.close();
+  
+    // define o tipo de retorno deste método
+    res.contentType('application/pdf')
+  
+    res.status(200).send(pdf)
+  }
